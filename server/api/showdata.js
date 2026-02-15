@@ -2,274 +2,191 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import exeCommand from '../config/cmdExecution.js';
+
 const router = express.Router();
 
-router.post('/userInfo', (req, res) => {
-    const email = req.body.email;
-    const query = `SELECT * FROM userdata WHERE email = '${email}' LIMIT 1`;
-    console.log("Query for get userinfo", query);
+/* ===============================
+   GET USER INFO
+================================ */
+router.post('/userInfo', async (req, res) => {
+    try {
+        const { email } = req.body;
 
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
+        const result = await exeCommand({
+            sql: `SELECT * FROM userdata WHERE email = ? LIMIT 1`,
+            values: [email]
+        });
 
-    }).catch((err) => {
-        console.log(err);
-    });
-});
+        res.json(result);
 
-//All user Details
-router.post('/userDetails', (req, res) => {
-    const userId = req.body.userId;
-
-    const query = `SELECT * FROM user_details WHERE userId = '${userId}' ORDER BY TIMEDATE DESC`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
-});
-
-//Top 3 user details
-router.post('/limiteduserDetails', (req, res) => {
-    const userId = req.body.userId;
-
-    const query = `SELECT * FROM user_details WHERE userId = '${userId}' ORDER BY TIMEDATE DESC`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch user info" });
+    }
 });
 
 
-//multer
+/* ===============================
+   ALL USER DETAILS
+================================ */
+router.post('/userDetails', async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        const result = await exeCommand({
+            sql: `SELECT * FROM user_details WHERE userId = ? ORDER BY TIMEDATE DESC`,
+            values: [userId]
+        });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch details" });
+    }
+});
+
+
+/* ===============================
+   LIMITED USER DETAILS
+================================ */
+router.post('/limiteduserDetails', async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        const result = await exeCommand({
+            sql: `SELECT * FROM user_details WHERE userId = ? ORDER BY TIMEDATE DESC LIMIT 3`,
+            values: [userId]
+        });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch limited details" });
+    }
+});
+
+
+/* ===============================
+   UPDATE PROFILE
+================================ */
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Don't use leading slash ('/uploads/') unless it's absolute
+        cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + '-' + file.originalname);
     }
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
 router.post('/profile/update', upload.single('file'), async (req, res) => {
-    const name = req.body.name;
-    const phone = req.body.phone;
-    const email = req.body.email;
-    const imagePath = req.file ? path.posix.join('uploads', req.file.filename) : null;
-
-    let query = `UPDATE userdata SET name='${name}', phone='${phone}'`;
-
-    if (imagePath) {
-        query += `, image='${imagePath}'`;
-    }
-
-    query += ` WHERE email='${email}'`;
-
-    console.log("Update Query:", query);
-
     try {
-        await exeCommand(query);
+        const { name, phone, email } = req.body;
+        const imagePath = req.file
+            ? path.posix.join('uploads', req.file.filename)
+            : null;
+
+        let sql = `UPDATE userdata SET name = ?, phone = ?`;
+        const values = [name, phone];
+
+        if (imagePath) {
+            sql += `, image = ?`;
+            values.push(imagePath);
+        }
+
+        sql += ` WHERE email = ?`;
+        values.push(email);
+
+        await exeCommand({ sql, values });
+
         res.json({
             status: 'success',
-            image: imagePath // Could be null, handle on Flutter
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ status: 'error', error: err });
-    }
-});
-
-
-//Fetch LIMITED Budget Transaction
-router.post('/budgetTransaction', (req, res) => {
-    const uid = req.body.uid;
-
-    const query = `SELECT * FROM budget WHERE uid = '${uid}' ORDER BY TIMEDATE DESC`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
-});
-
-//Delete Budget Transaction
-router.post('/deletebudgetTransaction', (req, res) => {
-    const id = req.body.id;
-    const query = `DELETE FROM budget WHERE id = '${id}'`;
-
-    exeCommand(query)
-        .then((result) => {
-            res.json({ success: true, message: 'Deleted successfully', result });
-            console.log('Delete successfully');
-        })
-        .catch((err) => {
-            //   logWriter(query, err);
-            res.status(500).json({ success: false, message: 'Error deleting transaction' });
-            console.log('Error deleting transaction');
-        });
-});
-
-//UserTransaction Details
-router.post('/userTransaction', (req, res) => {
-    const userId = req.body.userId;
-
-    const query = `SELECT * FROM user_details WHERE userId = '${userId}' ORDER BY TIMEDATE DESC`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
-});
-
-
-//Fetch Products
-router.post('/allProducts', (req, res) => {
-    const uid = req.body.uid;
-
-    const query = `SELECT * FROM products WHERE uid = '${uid}' ORDER BY TIMEDATE DESC`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
-});
-
-
-//Delete Products 
-router.post('/deleteProducts', (req, res) => {
-    const id = req.body.id;
-    const query = `DELETE FROM products WHERE id = '${id}'`;
-
-    exeCommand(query)
-        .then((result) => {
-            res.json({ success: true, message: 'Deleted successfully', result });
-            console.log('Delete successfully');
-        })
-        .catch((err) => {
-            //   logWriter(query, err);
-            res.status(500).json({ success: false, message: 'Error deleting transaction' });
-            console.log('Error deleting transaction');
-        });
-});
-
-
-// //Delete user Transaction
-// router.post('/deleteUserTransaction', (req, res) => {
-//   const id = req.body.id;
-//   const query = `DELETE FROM products WHERE id = '${id}'`;
-
-//   exeCommand(query)
-//     .then((result) => {
-//       res.json({ success: true, message: 'Deleted successfully', result });
-//       console.log('Delete successfully');
-//     })
-//     .catch((err) => {
-//     //   logWriter(query, err);
-//       res.status(500).json({ success: false, message: 'Error deleting transaction' });
-//       console.log('Error deleting transaction');
-//     });
-// });
-
-// Delete multiple user transactions
-router.post('/deleteUserTransaction', async (req, res) => {
-    console.log("upcoming data:", req.body);
-    const upcomingIds = req.body.transactionIds;
-
-    if (!Array.isArray(upcomingIds) || upcomingIds.length === 0) {
-        return res.status(400).json({
-            success: false,
-            message: 'transactionIds must be a non-empty array'
-        });
-    }
-
-    try {
-        const idsStr = upcomingIds.map(id => parseInt(id, 10)).join(",");
-        const cmd = `DELETE FROM user_details WHERE id IN (${idsStr})`;
-        const result = await exeCommand(cmd);
-
-        return res.status(200).json({
-            success: true,
-            message: 'Transactions deleted successfully',
-            deletedCount: result?.affectedRows || 0
+            image: imagePath
         });
 
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error?.message || 'Server error'
-        });
+        console.error(error);
+        res.status(500).json({ status: 'error' });
     }
 });
 
 
-//Fetch Shopkeeper Info
-router.post('/shopkeeperInfo', (req, res) => {
-    const uid = req.body.uid;
+/* ===============================
+   BUDGET TRANSACTION
+================================ */
+router.post('/budgetTransaction', async (req, res) => {
+    try {
+        const { uid } = req.body;
 
-    const query = `SELECT * FROM Shopkeeper WHERE uid = '${uid}' LIMIT 1`;
-
-    exeCommand(query).then((result) => {
-        // console.log(result);
-        exeCommand(query)
-            .then((result) => res.json(result))
-            .catch((err) => logWriter(query, err))
-
-    }).catch((err) => {
-        console.log(err);
-    });
-});
-
-//Delete Shopkeeper Account
-
-router.post('/deleteShopkeeper', (req, res) => {
-    const id = req.body.id;
-    const query = `DELETE FROM Shopkeeper WHERE id = '${id}'`;
-
-    exeCommand(query)
-        .then((result) => {
-            res.json({ success: true, message: 'Deleted successfully', result });
-            console.log('Delete successfully');
-        })
-        .catch((err) => {
-            //   logWriter(query, err);
-            res.status(500).json({ success: false, message: 'Error deleting transaction' });
-            console.log('Error deleting transaction');
+        const result = await exeCommand({
+            sql: `SELECT * FROM budget WHERE uid = ? ORDER BY TIMEDATE DESC`,
+            values: [uid]
         });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch budget transactions" });
+    }
 });
 
 
+/* ===============================
+   DELETE BUDGET
+================================ */
+router.post('/deletebudgetTransaction', async (req, res) => {
+    try {
+        const { id } = req.body;
+
+        const result = await exeCommand({
+            sql: `DELETE FROM budget WHERE id = ?`,
+            values: [id]
+        });
+
+        res.json({ success: true, result });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
 
 
+/* ===============================
+   DELETE MULTIPLE USER TRANSACTIONS
+================================ */
+router.post('/deleteUserTransaction', async (req, res) => {
+    try {
+        const { transactionIds } = req.body;
+
+        if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'transactionIds must be non-empty array'
+            });
+        }
+
+        const placeholders = transactionIds.map(() => '?').join(',');
+
+        const result = await exeCommand({
+            sql: `DELETE FROM user_details WHERE id IN (${placeholders})`,
+            values: transactionIds
+        });
+
+        res.json({
+            success: true,
+            deletedCount: result.affectedRows
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
 
 
 export default router;
