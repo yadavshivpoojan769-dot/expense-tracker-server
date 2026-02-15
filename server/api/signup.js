@@ -2,105 +2,94 @@ import bcrypt from 'bcrypt';
 import express from 'express';
 import multer from 'multer';
 import exeCommand from '../config/cmdExecution.js';
-import db from '../config/db.js';
 
-const router = express.Router(); 
+const router = express.Router();
 
-// Set up multer storage
+// Multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Don't use leading slash ('/uploads/') unless it's absolute
+        cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + '-' + file.originalname);
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
-// Route: Sign Up User
+// 🔹 INSERT USER
 router.post('/signupuser/insert', upload.single('file'), async (req, res) => {
-    console.log("hit from Flutter"); 
+    console.log("hit from Flutter");
 
-    const { name, email, phone, password } = req.body;  
+    const { name, email, phone, password } = req.body;
     const imagePath = req.file ? req.file.path : null;
 
-    console.log("name:", name, "email:", email, "phone:", phone, "password:", password, "image:", imagePath);
-
     try {
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-        const TIMEDATE = new Date();
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const query = `
             INSERT INTO userdata (name, email, phone, password, image, TIMEDATE)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, NOW())
         `;
 
-        exeCommand({
+        await exeCommand({
             sql: query,
-            values: [name, email, phone, hashedPassword, imagePath, TIMEDATE]
-        })
-            .then(() => res.json('success'))
-            .catch(err => {
-                console.error('Insert error:', err);
-                res.status(500).json({ error: 'Insert failed' });
-            });
+            values: [name, email, phone, hashedPassword, imagePath]
+        });
 
-    } catch (error) {
-        console.error('Hashing error:', error);
-        res.status(500).json({ error: 'Password hashing failed' });
+        res.json("success");
+
+    } catch (err) {
+        console.error("Insert error:", err);
+        res.status(500).json({ error: "Insert failed" });
     }
 });
 
-// Route: Check if email exists
-router.post('/signupuser', (req, res) => {
-    const email = req.body.email;
-    const query = 'SELECT COUNT(*) as email_count FROM userdata WHERE email = ?';
 
-    db.query(query, [email], (err, results) => {
-        if (err) {  
-            console.error('Error executing query:', err);
-            return res.status(500).json({ error: 'Database query failed' });
-        }
-
-        const emailExists = results[0].email_count > 0;
-        res.json({ email_exists: emailExists });
-    });
-});
-
-//Add shopkeeper account
-
-router.post('/shopkeeper/insert', upload.single('file'), async (req, res) => {
-    console.log("get from Flutter"); 
-
-    const { shopname, email, phone, shoptype, uid, address} = req.body;  
-    const imagePath = req.file ? req.file.path : null;
-
-    console.log("shopname:", shopname, "email:", email, "phone:", phone, "shoptype:", shoptype, "uid:", uid, "address:", address, "image:", imagePath);
+// 🔹 CHECK EMAIL EXISTS
+router.post('/signupuser', async (req, res) => {
+    const { email } = req.body;
 
     try {
-        
-        const TIMEDATE = new Date();
+        const result = await exeCommand({
+            sql: 'SELECT COUNT(*) as email_count FROM userdata WHERE email = ?',
+            values: [email]
+        });
 
+        const emailExists = result[0].email_count > 0;
+
+        res.json({ email_exists: emailExists });
+
+    } catch (err) {
+        console.error("Email check error:", err);
+        res.status(500).json({ error: "Database query failed" });
+    }
+});
+
+
+// 🔹 INSERT SHOPKEEPER
+router.post('/shopkeeper/insert', upload.single('file'), async (req, res) => {
+    console.log("get from Flutter");
+
+    const { shopname, email, phone, shoptype, uid, address } = req.body;
+    const imagePath = req.file ? req.file.path : null;
+
+    try {
         const query = `
             INSERT INTO shopkeeper (shopname, email, phone, shoptype, uid, address, image, TIMEDATE)
-            VALUES (?, ?, ?, ?, ?, ?, ?, now())
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        exeCommand({
+        await exeCommand({
             sql: query,
-            values: [shopname, email, phone, shoptype, uid, address, imagePath, TIMEDATE]
-        })
-            .then(() => res.json('success'))
-            .catch(err => {
-                console.error('Insert error:', err);
-                res.status(500).json({ error: 'Insert failed' });
-            });
+            values: [shopname, email, phone, shoptype, uid, address, imagePath]
+        });
 
-    } catch (error) {
-        console.error('Hashing error:', error);
-        res.status(500).json({ error: 'Password hashing failed' });
+        res.json("success");
+
+    } catch (err) {
+        console.error("Shopkeeper insert error:", err);
+        res.status(500).json({ error: "Insert failed" });
     }
 });
 

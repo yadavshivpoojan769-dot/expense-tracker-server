@@ -1,12 +1,12 @@
-// const connection =require('./db.js');
-import connection from './db.js';
-const exeCommand=(command)=>{
-    return new Promise((resolve,reject)=>{
-        connection.query(command,(err,result)=>{
-            if(err) reject(err)
-            else resolve(result)
-        })
+import pool from './db.js';
 
-    })
-}
+const exeCommand = async ({ sql, values = [] }) => {
+  try {
+    const [result] = await pool.query(sql, values);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+
 export default exeCommand;
