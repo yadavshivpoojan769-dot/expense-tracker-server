@@ -7,21 +7,32 @@ const router = express.Router();
    INSERT USER TRANSACTION DETAILS
 ================================ */
 router.post('/insert', async (req, res) => {
-    const {
-        income,
-        from_user,
-        userId,
-        expence,
-        to_user,
-        letest_income,
-        letest_expence
-    } = req.body;
-
-    console.log("Received data:", req.body);
-
     try {
+        let {
+            income,
+            from_user,
+            userId,
+            expence,
+            to_user,
+            letest_income,
+            letest_expence
+        } = req.body;
+
+        console.log("Received data:", req.body);
+
+        // 🔥 Numeric sanitization (critical fix)
+        income = Number(income) || 0;
+        expence = Number(expence) || 0;
+        letest_income = Number(letest_income) || 0;
+        letest_expence = Number(letest_expence) || 0;
+        userId = Number(userId);
+
+        if (!userId) {
+            return res.status(400).json({ error: "Invalid userId" });
+        }
+
         const query = `
-            INSERT INTO userdetails
+            INSERT INTO user_details
             (income, from_user, userId, expence, to_user, letest_income, letest_expence, TIMEDATE)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `;
@@ -30,10 +41,10 @@ router.post('/insert', async (req, res) => {
             sql: query,
             values: [
                 income,
-                from_user,
+                from_user || '',
                 userId,
                 expence,
-                to_user,
+                to_user || '',
                 letest_income,
                 letest_expence
             ]
@@ -52,9 +63,16 @@ router.post('/insert', async (req, res) => {
    INSERT BUDGET
 ================================ */
 router.post('/budget/insert', async (req, res) => {
-    const { title, amount, date, uid, transactionDetails } = req.body;
-
     try {
+        let { title, amount, date, uid, transactionDetails } = req.body;
+
+        amount = Number(amount) || 0;
+        uid = Number(uid);
+
+        if (!uid) {
+            return res.status(400).json({ error: "Invalid uid" });
+        }
+
         const query = `
             INSERT INTO budget
             (title, amount, date, uid, transactionDetails, TIMEDATE)
@@ -64,9 +82,9 @@ router.post('/budget/insert', async (req, res) => {
         await exeCommand({
             sql: query,
             values: [
-                title,
+                title || '',
                 amount,
-                date,
+                date || null,
                 uid,
                 JSON.stringify(transactionDetails || [])
             ]
@@ -85,9 +103,15 @@ router.post('/budget/insert', async (req, res) => {
    INSERT PRODUCTS
 ================================ */
 router.post('/products/insert', async (req, res) => {
-    const { title, uid, productName } = req.body;
-
     try {
+        let { title, uid, productName } = req.body;
+
+        uid = Number(uid);
+
+        if (!uid) {
+            return res.status(400).json({ error: "Invalid uid" });
+        }
+
         const query = `
             INSERT INTO products
             (title, uid, productName, TIMEDATE)
@@ -97,7 +121,7 @@ router.post('/products/insert', async (req, res) => {
         await exeCommand({
             sql: query,
             values: [
-                title,
+                title || '',
                 uid,
                 JSON.stringify(productName || [])
             ]
@@ -116,19 +140,15 @@ router.post('/products/insert', async (req, res) => {
    ADD PRODUCTS
 ================================ */
 router.post('/products/add', async (req, res) => {
-    const { id, newProducts } = req.body;
-
-    if (!id || !Array.isArray(newProducts)) {
-        return res.status(400).json({ error: "Invalid input" });
-    }
-
     try {
-        const selectQuery = `
-            SELECT productName FROM products WHERE id = ?
-        `;
+        const { id, newProducts } = req.body;
+
+        if (!id || !Array.isArray(newProducts)) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
 
         const result = await exeCommand({
-            sql: selectQuery,
+            sql: `SELECT productName FROM products WHERE id = ?`,
             values: [id]
         });
 
@@ -164,13 +184,13 @@ router.post('/products/add', async (req, res) => {
    UPDATE PRODUCTS
 ================================ */
 router.post('/products/update', async (req, res) => {
-    const { id, updatedProducts } = req.body;
-
-    if (!id || !Array.isArray(updatedProducts)) {
-        return res.status(400).json({ error: "Invalid input" });
-    }
-
     try {
+        const { id, updatedProducts } = req.body;
+
+        if (!id || !Array.isArray(updatedProducts)) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+
         const result = await exeCommand({
             sql: `UPDATE products SET productName = ? WHERE id = ?`,
             values: [JSON.stringify(updatedProducts), id]
@@ -193,13 +213,13 @@ router.post('/products/update', async (req, res) => {
    DELETE PRODUCTS
 ================================ */
 router.post('/products/delete', async (req, res) => {
-    const { id, remainingProducts } = req.body;
-
-    if (!id || !Array.isArray(remainingProducts)) {
-        return res.status(400).json({ error: "Invalid input" });
-    }
-
     try {
+        const { id, remainingProducts } = req.body;
+
+        if (!id || !Array.isArray(remainingProducts)) {
+            return res.status(400).json({ error: "Invalid input" });
+        }
+
         const result = await exeCommand({
             sql: `UPDATE products SET productName = ? WHERE id = ?`,
             values: [JSON.stringify(remainingProducts), id]
