@@ -1,0 +1,33 @@
+name: expencetracker
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  file_picker: ^8.3.7
+  share_plus: ^11.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  http: ^1.4.0
+  toastification: ^2.1.0
+  intl: ^0.20.2
+  google_fonts: ^6.2.1
+  flutter_typeahead: ^5.2.0
+  shared_preferences: ^2.5.3
+  dropdown_search: ^6.0.2
+  url_launcher: ^6.2.6
+  carousel_slider: ^5.1.1
+  
+
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
